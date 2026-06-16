@@ -867,8 +867,15 @@ class SimpleMemoryPlugin(Star):
         state = MemoryStore(mem_file_path).load()
         state.pop("metadata", None)
         logger.info("创建记忆提示词，操作者: %s", uid)
-        
-        memory_snapshot = json.dumps(state, ensure_ascii=False, indent=2)
+
+        # 去掉 embedding 再发给 LLM，向量对 LLM 无意义且占 token
+        state_no_emb = {}
+        for mem_type in ["core_memory", "long_term", "medium_term"]:
+            state_no_emb[mem_type] = [
+                {k: v for k, v in e.items() if k != "embedding"}
+                for e in state.get(mem_type, [])
+            ]
+        memory_snapshot = json.dumps(state_no_emb, ensure_ascii=False, indent=2)
         cur_mem_prompt = (
             "You are an intelligent agent with a structured memory system. Below is your current memory snapshot.\n"
             "When updating your memories, follow these principles:\n"

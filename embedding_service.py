@@ -122,18 +122,20 @@ class EmbeddingService:
         indexed = [(i, t) for i, t in enumerate(texts) if t and t.strip()]
         if not indexed:
             return [None] * len(texts)
-        indices, clean_texts = zip(*indexed)
-
-        try:
-            raw = await provider.get_embeddings(list(clean_texts))
-        except Exception:
-            logger.warning("AstrBot batch embedding failed", exc_info=True)
-            return [None] * len(texts)
 
         results: List[Optional[List[float]]] = [None] * len(texts)
-        if isinstance(raw, list) and len(raw) == len(indices):
-            for idx, emb in zip(indices, raw):
-                results[idx] = list(emb) if emb is not None else None
+        # 部分 API 限制单次批量条数（如阿里百炼 ≤10），分批调用
+        chunk_size = 10
+        for start in range(0, len(indexed), chunk_size):
+            chunk = indexed[start : start + chunk_size]
+            chunk_indices, chunk_texts = zip(*chunk)
+            try:
+                raw = await provider.get_embeddings(list(chunk_texts))
+                if isinstance(raw, list):
+                    for idx, emb in zip(chunk_indices, raw):
+                        results[idx] = list(emb) if emb is not None else None
+            except Exception:
+                logger.warning("AstrBot batch embedding failed", exc_info=True)
         return results
 
     # ------------------------------------------------------------------
@@ -160,23 +162,24 @@ class EmbeddingService:
         indexed = [(i, t) for i, t in enumerate(texts) if t and t.strip()]
         if not indexed:
             return [None] * len(texts)
-        indices, clean_texts = zip(*indexed)
-
-        try:
-            resp = await self._client.embeddings.create(
-                model=self.model_name,
-                input=list(clean_texts),
-                dimensions=self.dimensions,
-            )
-        except Exception:
-            logger.warning(
-                "OpenAI batch embedding API call failed", exc_info=True
-            )
-            return [None] * len(texts)
 
         results: List[Optional[List[float]]] = [None] * len(texts)
-        for data in resp.data:
-            results[indices[data.index]] = list(data.embedding)
+        chunk_size = 10
+        for start in range(0, len(indexed), chunk_size):
+            chunk = indexed[start : start + chunk_size]
+            chunk_indices, chunk_texts = zip(*chunk)
+            try:
+                resp = await self._client.embeddings.create(
+                    model=self.model_name,
+                    input=list(chunk_texts),
+                    dimensions=self.dimensions,
+                )
+                for data in resp.data:
+                    results[chunk_indices[data.index]] = list(data.embedding)
+            except Exception:
+                logger.warning(
+                    "OpenAI batch embedding API call failed", exc_info=True
+                )
         return results
 
     # ------------------------------------------------------------------
