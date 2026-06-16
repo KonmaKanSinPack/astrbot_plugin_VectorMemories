@@ -475,8 +475,8 @@ class SimpleMemoryPlugin(Star):
     async def update_user_roster_id_dict(
         self,
         event: AstrMessageEvent,
-        user_name: str = None,
-        subject_id: str = None,
+        user_name: Optional[str] = None,
+        subject_id: Optional[str] = None,
         delete: bool = False,
     ) -> MessageEventResult:
         """更新或删除 user_name → subject_id 映射。
@@ -501,8 +501,8 @@ class SimpleMemoryPlugin(Star):
     async def search_memory_by_user_name(
         self,
         event: AstrMessageEvent,
-        user_name: str = None,
-        query: str = "",
+        user_name: Optional[str] = None,
+        query: Optional[str] = "",
     ) -> MessageEventResult:
         """按 user_name 搜索该用户的记忆。
 
@@ -666,7 +666,7 @@ class SimpleMemoryPlugin(Star):
     async def delete_several_memories(
         self,
         event: AstrMessageEvent,
-        memory_type: str = None,
+        memory_type: Optional[str] = None,
         memory_ids_to_delete_list: list = [],
     ) -> MessageEventResult:
         """批量删除同类型的多条记忆。
