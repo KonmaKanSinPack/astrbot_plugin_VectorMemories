@@ -823,8 +823,7 @@ class SimpleMemoryPlugin(Star):
         if not person_prompt:
             person_prompt = self.context.provider_manager.selected_default_persona["prompt"]
 
-        if extra_prompt != "":
-            mem_prompt = extra_prompt + "\n" + mem_prompt
+        mem_prompt = extra_prompt + "\n" 
         logger.info(f"查看mem:{mem_prompt}")
         provider = self.context.get_using_provider()
         llm_resp = await provider.text_chat(
@@ -1172,6 +1171,24 @@ class SimpleMemoryPlugin(Star):
             f"- {label}: 新增 {result.added} 条，"
             f"更新 {result.updated} 条，删除 {result.deleted} 条"
         )
+
+    async def initialize(self):
+        """向量模式首次启用时，补全旧数据缺少的 embedding。"""
+        if not self.enable_vector or not self.embedding_service.is_ready:
+            return
+
+        data_path = get_astrbot_data_path()
+        if self.use_global:
+            paths = [Path(data_path) / "memory_store_global.json"]
+        else:
+            paths = list(Path(data_path).glob("memory_store_*.json"))
+
+        for p in paths:
+            store = MemoryStore(str(p))
+            state = store.load()
+            await self._embed_new_entries(state)
+            store.save(state)
+        logger.info("[VectorMemories] 冷迁移完成：旧数据 embedding 已补全")
 
     async def terminate(self):
         """插件销毁时无需特殊处理。"""
