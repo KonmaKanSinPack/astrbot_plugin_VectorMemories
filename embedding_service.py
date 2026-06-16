@@ -94,12 +94,7 @@ class EmbeddingService:
 
     async def _embed_via_astrbot(self, text: str) -> Optional[List[float]]:
         try:
-            # 优先尝试异步方法
-            get_emb = getattr(self._astrbot_provider, "get_embedding_async", None)
-            if get_emb is not None:
-                result = await get_emb(text)
-            else:
-                result = self._astrbot_provider.get_embedding(text)
+            result = await self._astrbot_provider.get_embedding(text)
             return list(result) if result is not None else None
         except Exception:
             logger.warning("AstrBot embedding provider failed", exc_info=True)
@@ -108,20 +103,13 @@ class EmbeddingService:
     async def _embeddings_via_astrbot(
         self, texts: List[str]
     ) -> List[Optional[List[float]]]:
-        # 过滤空文本
         indexed = [(i, t) for i, t in enumerate(texts) if t and t.strip()]
         if not indexed:
             return [None] * len(texts)
         indices, clean_texts = zip(*indexed)
 
         try:
-            get_embs = getattr(
-                self._astrbot_provider, "get_embeddings_async", None
-            )
-            if get_embs is not None:
-                raw = await get_embs(list(clean_texts))
-            else:
-                raw = self._astrbot_provider.get_embeddings(list(clean_texts))
+            raw = await self._astrbot_provider.get_embeddings(list(clean_texts))
         except Exception:
             logger.warning("AstrBot batch embedding failed", exc_info=True)
             return [None] * len(texts)
