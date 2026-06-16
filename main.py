@@ -372,7 +372,7 @@ class SimpleMemoryPlugin(Star):
         )
 
         req.system_prompt = ori_system_prompt + f"\n{mem_prompt}"
-        # logger.info(f"当前的系统提示词_SimpleMemory:{req.system_prompt}")
+        logger.info(f"当前的系统提示词_SimpleMemory:{req.system_prompt}")
 
     @filter.command_group("mem")
     def mem(self, t):
@@ -435,6 +435,41 @@ class SimpleMemoryPlugin(Star):
             return
 
         yield event.plain_result("[结论] embedding provider 正常工作，可以开启向量模式")
+        event.stop_event()
+
+    @mem.command("rebuild")
+    async def mem_rebuild(self, event):
+        """重构记忆：备份当前文件 → 清空 → LLM 基于旧记忆从零重建。"""
+        uid = event.unified_msg_origin
+        mem_path = (
+            os.path.join(get_astrbot_data_path(), f"memory_store_{uid}.json")
+            if not self.use_global
+            else os.path.join(get_astrbot_data_path(), "memory_store_global.json")
+        )
+        pre_mem_path = (
+            os.path.join(get_astrbot_data_path(), f"memory_store_{uid}_pre.json")
+            if not self.use_global
+            else os.path.join(
+                get_astrbot_data_path(), "memory_store_global_pre.json"
+            )
+        )
+        # 优先使用已有的 _pre 备份，否则读取当前文件
+        if os.path.exists(pre_mem_path):
+            state_pre = MemoryStore(pre_mem_path).load()
+        else:
+            state_pre = MemoryStore(mem_path).load()
+
+        # 将当前文件重命名为备份 → 删除原文件，gen 会创建新的记忆文件
+        try:
+            os.rename(mem_path, pre_mem_path)
+            os.remove(mem_path)
+        except Exception as e:
+            logger.info(f"发生错误:{e}")
+
+        await self.gen(
+            event,
+            extra_prompt=f"这是你之前的记忆，根据这些记忆重构现在的记忆:{state_pre}",
+        )
         event.stop_event()
 
     @mem.command("help")
