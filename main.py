@@ -304,9 +304,11 @@ class SimpleMemoryPlugin(Star):
 
         # ---- long_term / medium_term：向量相似度排序或精确匹配 ----
         if self.enable_vector and self.embedding_service.is_ready:
-            query_text = event.message_str or ""
-            query_emb = None
-            if query_text:
+            query_text = (event.message_str or "").strip()
+            if not query_text:
+                # 非文本输入（图片、语音、文件等）→ 注入全部记忆
+                memory_snapshot = self.process_mem_info(state, id_list=id_list)
+            else:
                 query_emb = await self.embedding_service.get_embedding(query_text)
                 if query_emb:
                     preview = ", ".join(f"{v:.4f}" for v in query_emb[:5])
@@ -316,29 +318,24 @@ class SimpleMemoryPlugin(Star):
                         f"前5值=[{preview}...] | "
                         f"查询文本={query_text[:50]}..."
                     )
+                    # 向量路径：先 subject_id 预过滤，再余弦相似度排序
+                    filtered_snapshot: Dict[str, List[Dict]] = {}
+                    for mem_type in ["long_term", "medium_term"]:
+                        entries = state.get(mem_type, [])
+                        candidates = [
+                            e for e in entries if e.get("subject_id") in id_list
+                        ]
+                        if not candidates:
+                            filtered_snapshot[mem_type] = []
+                            continue
+                        ranked = self.embedding_service.rank_memories(
+                            query_emb, candidates, self.retrieval_top_k
+                        )
+                        filtered_snapshot[mem_type] = [mem for mem, _ in ranked]
+                    memory_snapshot = self.process_mem_info(filtered_snapshot)
                 else:
                     logger.warning("[VectorMemories] 查询向量生成失败，降级为精确匹配")
-
-            if query_emb is not None:
-                # 向量路径：先 subject_id 预过滤（隐私边界），再余弦相似度排序
-                filtered_snapshot: Dict[str, List[Dict]] = {}
-                for mem_type in ["long_term", "medium_term"]:
-                    entries = state.get(mem_type, [])
-                    candidates = [
-                        e for e in entries if e.get("subject_id") in id_list
-                    ]
-                    if not candidates:
-                        filtered_snapshot[mem_type] = []
-                        continue
-                    ranked = self.embedding_service.rank_memories(
-                        query_emb, candidates, self.retrieval_top_k
-                    )
-                    filtered_snapshot[mem_type] = [mem for mem, _ in ranked]
-
-                memory_snapshot = self.process_mem_info(filtered_snapshot)
-            else:
-                # embedding 失败 → 降级为精确匹配
-                memory_snapshot = self.process_mem_info(state, id_list=id_list)
+                    memory_snapshot = self.process_mem_info(state, id_list=id_list)
         else:
             # 向量模式关闭 → 精确匹配
             memory_snapshot = self.process_mem_info(state, id_list=id_list)
