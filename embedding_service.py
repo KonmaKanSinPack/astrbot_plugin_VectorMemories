@@ -206,7 +206,9 @@ class EmbeddingService:
         for mem in memories:
             emb = mem.get(embedding_key)
             score = self.cosine_similarity(query_embedding, emb) if emb else 0.0
-            scored.append((mem, score))
+            # 相似度为 0 的记忆无意义（无 embedding 或纯正交），直接跳过
+            if score > 0.0:
+                scored.append((mem, score))
 
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored[:top_k]
