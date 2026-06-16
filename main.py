@@ -829,7 +829,7 @@ class SimpleMemoryPlugin(Star):
         logger.info(f"查看mem:{mem_prompt}")
         provider = self.context.get_using_provider()
         llm_resp = await provider.text_chat(
-            prompt=mem_prompt,
+            prompt=json_repair.loads(mem_prompt),
             session_id=None,
             contexts=history,
             image_urls=[],
