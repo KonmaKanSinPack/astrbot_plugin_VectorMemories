@@ -485,13 +485,20 @@ class SimpleMemoryPlugin(Star):
         else:
             state_pre = MemoryStore(mem_path).load()
 
-        # 去掉 embedding 向量再传给 LLM，否则请求体膨胀到几 MB
+        # 去掉向量和元数据，只保留 LLM 需要的字段，避免撑爆 context
         clean_state = {}
         for mem_type in ["core_memory", "long_term", "medium_term"]:
             clean_state[mem_type] = []
             for entry in state_pre.get(mem_type, []):
-                entry_clean = {k: v for k, v in entry.items() if k != "embedding"}
-                clean_state[mem_type].append(entry_clean)
+                clean_state[mem_type].append({
+                    "memory_id": entry.get("memory_id"),
+                    "content": entry.get("content"),
+                })
+
+        old_mem_json = json.dumps(clean_state, ensure_ascii=False, indent=2)
+        # 截断，防止超出模型 context 限制
+        if len(old_mem_json) > 8000:
+            old_mem_json = old_mem_json[:8000] + "\n... (truncated)"
 
         # 将当前文件重命名为备份 → 删除原文件，gen 会创建新的记忆文件
         try:
@@ -503,7 +510,7 @@ class SimpleMemoryPlugin(Star):
         await self.gen(
             event,
             extra_prompt="这是你之前的记忆，根据这些记忆重构现在的记忆:\n"
-            + json.dumps(clean_state, ensure_ascii=False, indent=2),
+            + old_mem_json,
         )
         event.stop_event()
 
