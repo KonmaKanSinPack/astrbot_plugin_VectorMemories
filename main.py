@@ -798,7 +798,7 @@ class SimpleMemoryPlugin(Star):
             "建议流程: /mem gen -> 让大模型总结并应用记忆 -> /mem check 查看结果。"
         )
 
-    async def send_prompt(self, event, extra_prompt="", full=False):
+    async def send_prompt(self, event, extra_prompt=""):
         """将记忆更新提示词发送给 LLM，返回其生成的 JSON 文本。
 
         Args:
@@ -824,7 +824,6 @@ class SimpleMemoryPlugin(Star):
         if not person_prompt:
             person_prompt = self.context.provider_manager.selected_default_persona["prompt"]
 
-        mem_prompt = self._handle_prompt(event, history, full)
         if extra_prompt != "":
             mem_prompt = extra_prompt + "\n" + mem_prompt
         logger.info(f"查看mem:{mem_prompt}")
@@ -906,27 +905,6 @@ class SimpleMemoryPlugin(Star):
             "- long_term: durable knowledge, goals, reusable user facts, and other concrete information worth keeping across many sessions; update cautiously.\n"
             "- medium_term: active themes, recent continuity, short-to-mid horizon tasks, and concrete contextual facts spanning recent sessions.\n"
             "Special rule: if a memory is concrete and factual, it must not go into core_memory even if it feels important.\n"
-            "JSON Format:\n"
-            "{\n"
-            "  \"summary\": {\n"
-            "    \"core_memory_highlights\": \"<summary of core memory changes>\",\n"
-            "    \"long_term_highlights\": \"<summary of long-term changes>\",\n"
-            "    \"medium_term_highlights\": \"<summary of medium-term changes>\",\n"
-            "  },\n"
-            "  \"core_memory\": {\n"
-            "    \"upsert\": [{\n"
-            "      \"memory_id\": \"reuse or system generated\",\n"
-            "      \"content\": \"memory text\",\n"
-            "      \"category\": \"profile|preference|task|fact\",\n"
-            "      \"importance\": 1-5,\n"
-            "      \"expires_at\": \"YYYY-MM-DD or leave blank\"\n"
-            "      \"subject_id\": \"(who/which group this memory is associated with; use 'global' means global memory)\"\n"
-            "    }],\n"
-            "    \"delete\": [\"memory_id to delete\"]\n"
-            "  },\n"
-            "  \"long_term\": { same structure as core_memory },\n"
-            "  \"medium_term\": { same structure as core_memory },\n"
-            "}\n\n"
             "If no changes are needed, return empty upsert/delete and explain why in the summary."
         )
         # logger.info(f"记忆提示词内容:{template}")
