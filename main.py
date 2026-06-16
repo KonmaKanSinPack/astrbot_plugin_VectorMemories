@@ -196,42 +196,61 @@ class SimpleMemoryPlugin(Star):
         )
 
     def _find_embedding_provider(self) -> Any:
-        """从 AstrBot 的 provider_manager 中查找已启用的 Embedding 服务商。
-
-        依次尝试 provider_manager 的多种 API 形态，找到第一个可用的返回。
-        找不到返回 None。
-        """
+        """从 AstrBot 的 provider_manager 中查找已启用的 Embedding 服务商。"""
         pm = self.context.provider_manager
         if pm is None:
+            logger.warning("[VectorMemories] provider_manager 为 None")
             return None
 
-        # 尝试 1：provider_manager 有直接的 embedding 列表
-        for attr in ("embedding_providers", "embedding_provider_insts"):
+        # 输出 provider_manager 上所有公开属性，方便调试
+        available = [a for a in dir(pm) if not a.startswith("_")]
+        logger.info(f"[VectorMemories] provider_manager 可用属性: {available}")
+
+        # 尝试 1：直接获取 embedding provider
+        for method in ("get_embedding_provider", "get_provider_by_type"):
+            fn = getattr(pm, method, None)
+            if fn is None:
+                continue
+            try:
+                result = fn("embedding") if "by_type" in method else fn()
+                if result is not None:
+                    logger.info(f"[VectorMemories] 通过 pm.{method}() 找到 provider: {type(result).__name__}")
+                    return result
+            except Exception as e:
+                logger.info(f"[VectorMemories] pm.{method}() 失败: {e}")
+
+        # 尝试 2：遍历 embedding 专属列表
+        for attr in ("embedding_providers", "embedding_provider_insts", "embedding", "embedding_instances"):
             providers = getattr(pm, attr, None)
             if providers:
-                for p in providers:
+                logger.info(f"[VectorMemories] 找到 pm.{attr}，共 {len(providers)} 个")
+                for p in (providers.values() if isinstance(providers, dict) else providers):
                     try:
                         if getattr(p, "is_enabled", True):
                             return p
                     except Exception:
                         continue
-                # 如果列表非空但没有启用的，返回第一个
-                return providers[0] if providers else None
+                return providers[0] if isinstance(providers, list) and providers else None
 
-        # 尝试 2：遍历通用 provider 列表，按类型筛选
+        # 尝试 3：遍历通用 provider 列表，按类型筛选
         for attr in ("providers", "provider_insts", "_providers"):
             providers = getattr(pm, attr, None)
             if not providers:
                 continue
-            for p in (providers.values() if isinstance(providers, dict) else providers):
+            logger.info(f"[VectorMemories] 遍历 pm.{attr}（{len(providers)} 个）")
+            items = providers.values() if isinstance(providers, dict) else providers
+            for p in items:
                 try:
-                    ptype = getattr(p, "type", None) or getattr(p, "provider_type", None)
-                    if ptype in ("embedding", "EMBEDDING", "EmbeddingProvider"):
+                    ptype = getattr(p, "type", None) or getattr(p, "provider_type", None) or ""
+                    logger.info(f"[VectorMemories] provider: type={ptype}, name={getattr(p, 'name', '?')}")
+                    if str(ptype).lower() in ("embedding", "embeddingprovider"):
                         if getattr(p, "is_enabled", True):
                             return p
-                except Exception:
+                except Exception as e:
+                    logger.info(f"[VectorMemories] 遍历出错: {e}")
                     continue
 
+        logger.warning("[VectorMemories] 未找到任何 embedding provider")
         return None
 
     def process_mem_info(
