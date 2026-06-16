@@ -138,7 +138,7 @@ class UpsertResult:
     deleted: int = 0
 
 
-@register("simple_memory", "兔子", "为大模型提供向量化记忆提示词", "1.4.0")
+@register("vector_memories", "兔子", "为大模型提供向量化记忆提示词", "1.4.0")
 class SimpleMemoryPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)

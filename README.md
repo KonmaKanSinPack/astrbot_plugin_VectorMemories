@@ -4,7 +4,7 @@
 
 ## 与旧版 simple_memory 的区别
 
-| | 旧版 simple_memory | VectorMemories |
+| | 旧版 simple_memory | vector_memories |
 |---|---|---|
 | 检索方式 | subject_id 精确匹配，返回全部记忆 | long_term / medium_term 按语义相似度排序，只返回 top-K |
 | core_memory | 返回全部 | **默认全部返回**（AI 人格记忆通常少且重要），可选也走 top-K |
@@ -159,4 +159,4 @@ embedding API 调用失败 / 密钥未配置 / 网络超时 / AstrBot 内置 pro
 - **不要随意更换 embedding 模型**：模型变 → 维度可能变 → 旧向量的余弦相似度无意义。如果要换，先 `/mem rebuild` 重建记忆。
 - **subject_id 隔离**：LLM 写入记忆时自动把用户私人信息关联到具体 subject_id，不会写成 `global`。
 - **core_memory 约束**：只存 AI 人格层面的抽象内容，具体事实放 lt 或 mt。
-- **向量模式关闭时**：行为完全等同于旧版 simple_memory，无任何影响。
+- **向量模式关闭时**：行为完全等同于旧版（simple_memory），无任何影响。
