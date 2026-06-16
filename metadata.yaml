@@ -2,5 +2,5 @@ name: vector_memories
 display_name: 向量记忆系统 (VectorMemories)
 desc: 可配置 embedding 模型的向量记忆插件，基于语义相似度检索记忆，每次只返回最相关的 n 条记忆。
 version: v1.4.0
-author: shiqi-svg
-repo: https://github.com/shiqi-svg/astrbot-plugin-VectorMemories
+author: KonmaKanSinPack
+repo: https://github.com/KonmaKanSinPack/astrbot_plugin_VectorMemories
