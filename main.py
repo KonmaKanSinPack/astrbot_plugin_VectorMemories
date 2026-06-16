@@ -821,14 +821,12 @@ class SimpleMemoryPlugin(Star):
 
         person_prompt = await self.context.persona_manager.get_default_persona_v3(uid)
         if not person_prompt:
-            person_prompt = self.context.provider_manager.selected_default_persona[
-                "prompt"
-            ]
+            person_prompt = self.context.provider_manager.selected_default_persona["prompt"]
 
         mem_prompt = self._handle_prompt(event, history, full)
         if extra_prompt != "":
             mem_prompt = extra_prompt + "\n" + mem_prompt
-
+        logger.info(f"查看mem:{mem_prompt}")
         provider = self.context.get_using_provider()
         llm_resp = await provider.text_chat(
             prompt=mem_prompt,
