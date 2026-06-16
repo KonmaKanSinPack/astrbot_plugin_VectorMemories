@@ -418,6 +418,49 @@ class SimpleMemoryPlugin(Star):
             )
         event.stop_event()
     
+    @mem.command("test")
+    async def test_embedding(self, event: AstrMessageEvent):
+        """验证 embedding provider 是否可用。
+
+        依次检查：
+        1. 能否从 AstrBot Context 获取到 embedding provider
+        2. 调用 get_embedding("Hello world") 看能否正常返回向量
+        """
+        uid = event.unified_msg_origin
+
+        # Step 1: 检查 provider 是否存在
+        get_all = getattr(self.context, "get_all_embedding_providers", None)
+        if get_all is None:
+            yield event.plain_result("[step 1] context 没有 get_all_embedding_providers 方法")
+            return
+
+        providers = get_all()
+        if not providers:
+            yield event.plain_result("[step 1] get_all_embedding_providers() 返回空列表，请在 WebUI 服务提供商页面配置 Embedding")
+            return
+
+        provider = providers[0]
+        provider_type = type(provider).__name__
+        yield event.plain_result(f"[step 1] 获取到 provider: {provider_type}")
+
+        # Step 2: 测试 get_embedding
+        try:
+            result = await provider.get_embedding("Hello world")
+            if result is None:
+                yield event.plain_result("[step 2] get_embedding 返回 None")
+                return
+            vec = list(result)
+            preview = ", ".join(f"{v:.4f}" for v in vec[:5])
+            yield event.plain_result(
+                f"[step 2] embedding 调用成功 | 维度={len(vec)} | 前5值=[{preview}...]"
+            )
+        except Exception as e:
+            yield event.plain_result(f"[step 2] get_embedding 失败: {e}")
+            return
+
+        yield event.plain_result("[结论] embedding provider 正常工作，可以开启向量模式")
+        event.stop_event()
+
     @mem.command("help")
     async def help(self, event: AstrMessageEvent):
         """显示 /mem 子命令的使用说明。"""
