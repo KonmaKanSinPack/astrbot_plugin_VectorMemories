@@ -153,11 +153,9 @@ class SimpleMemoryPlugin(Star):
 
         provider_source = self.config.get("embedding_provider_source", "astrbot")
 
-        # 尝试从 AstrBot 内置服务商获取 embedding provider
         astrbot_provider = None
         if provider_source == "astrbot":
-            provider_id = self.config.get("model_choice_provider_id", "")
-            astrbot_provider = self._find_embedding_provider(provider_id)
+            astrbot_provider = self._find_embedding_provider()
             if astrbot_provider is None:
                 logger.warning(
                     "未找到 AstrBot 内置 Embedding 服务商，"
@@ -196,35 +194,18 @@ class SimpleMemoryPlugin(Star):
             f"core_memory=始终全量注入"
         )
 
-    def _find_embedding_provider(self, provider_id: str = "") -> Any:
-        """从 AstrBot Context 查找 Embedding 服务商。
-
-        优先按 *provider_id* 精确查找（WebUI select_provider 选中的 ID）；
-        未指定时调用 get_all_embedding_providers() 取第一个。
-        """
-        # 有指定 ID → 精确查找
-        if provider_id:
-            get_by_id = getattr(self.context, "get_provider_by_id", None)
-            if get_by_id:
-                try:
-                    provider = get_by_id(provider_id)
-                    if provider is not None:
-                        logger.info(f"[VectorMemories] 使用指定 provider: {provider_id}")
-                        return provider
-                except Exception as e:
-                    logger.warning(f"[VectorMemories] get_provider_by_id 失败: {e}")
-
-        # 无指定 ID → 取第一个 embedding provider
+    def _find_embedding_provider(self) -> Any:
+        """从 AstrBot Context 获取已配置的 Embedding 服务商。"""
         get_all = getattr(self.context, "get_all_embedding_providers", None)
         if get_all:
             try:
                 providers = get_all()
                 if providers:
-                    logger.info("[VectorMemories] 使用首个 embedding provider（get_all_embedding_providers）")
-                    return providers[0]
+                    p = providers[0]
+                    logger.info(f"[VectorMemories] 使用 embedding provider: {getattr(p, 'model_name', '?')}")
+                    return p
             except Exception as e:
                 logger.warning(f"[VectorMemories] get_all_embedding_providers 失败: {e}")
-
         return None
 
     def process_mem_info(

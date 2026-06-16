@@ -14,18 +14,11 @@
   "embedding_provider_source": {
     "type": "string",
     "description": "Embedding 向量来源",
-    "hint": "astrbot：使用 AstrBot 管理面板中已配置的 Embedding 服务商（推荐，无需重复填密钥）。manual：手动填写下方的 API 地址和密钥。",
+    "hint": "astrbot：自动使用 AstrBot 管理面板中已配置的 Embedding 服务商（推荐，无需额外配置）。manual：手动填写下方的 API 地址和密钥。",
     "default": "astrbot",
     "options": ["astrbot", "manual"],
     "labels": ["AstrBot 内置服务商", "手动配置 API"]
   },
-  "model_choice_provider_id": {
-                "description": "模型判定提供商 ID",
-                "hint": "当 modeastrbot 时生效。用于选择embedder模型，留空使用当前会话默认提供商。",
-                "type": "string",
-                "_special": "select_provider",
-                "default": ""
-            },
   "embedding_api_base_url": {
     "type": "string",
     "description": "[manual 模式] Embedding API 的基础地址",
