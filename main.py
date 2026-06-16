@@ -398,7 +398,7 @@ class SimpleMemoryPlugin(Star):
     
     @mem.command("gen")
     async def gen(
-        self, event: AstrMessageEvent, extra_prompt: str = "", use_full: str = ""
+        self, event: AstrMessageEvent, extra_prompt: str = ""
     ):
         """将对话历史和记忆快照发给 LLM，生成更新 JSON 并自动应用。
 
@@ -409,7 +409,6 @@ class SimpleMemoryPlugin(Star):
         mem_result = await self.send_prompt(
             event,
             extra_prompt=extra_prompt,
-            full=(str(use_full).strip() == "--full"),
         )
         self.last_update[event.unified_msg_origin] = mem_result
 
