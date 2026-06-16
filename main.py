@@ -150,7 +150,6 @@ class SimpleMemoryPlugin(Star):
 
         self.enable_vector = self.config.get("enable_vector_memory", False)
         self.retrieval_top_k = self.config.get("retrieval_top_k", 5)
-        self.include_all_core = self.config.get("include_all_core_memory", True)
 
         provider_source = self.config.get("embedding_provider_source", "astrbot")
 
@@ -193,7 +192,7 @@ class SimpleMemoryPlugin(Star):
             f"维度={self.embedding_service.dimensions} | "
             f"就绪={'是' if self.embedding_service.is_ready else '否'} | "
             f"top_k={self.retrieval_top_k} | "
-            f"core全含={self.include_all_core}"
+            f"core_memory=始终全量注入"
         )
 
     def _find_embedding_provider(self) -> Any:
@@ -338,59 +337,16 @@ class SimpleMemoryPlugin(Star):
         )
         state = MemoryStore(mem_file_path).load()
 
-        # ---- core_memory：默认全部包含；向量模式下可选 top-k ----
+        # ---- core_memory：始终全部注入（数量少，是 AI 人格，不应被过滤） ----
         core_mem = state.get("core_memory", [])
         core_mem_list = []
-
-        use_vector_core = (
-            self.enable_vector
-            and self.embedding_service.is_ready
-            and not self.include_all_core
-        )
-
-        if use_vector_core:
-            query_text = event.message_str or ""
-            if query_text:
-                query_emb = await self.embedding_service.get_embedding(query_text)
-                if query_emb:
-                    filtered_core = [
-                        e for e in core_mem if e.get("subject_id") in id_list
-                    ]
-                    ranked = self.embedding_service.rank_memories(
-                        query_emb, filtered_core, self.retrieval_top_k
-                    )
-                    for mem, score in ranked:
-                        if mem.get("content"):
-                            core_mem_list.append(
-                                f"- memory_id:{mem['memory_id']}, {mem['content']}, "
-                                f"subject_id: {mem.get('subject_id')}, "
-                                f"relevance: {score:.3f}"
-                            )
-                else:
-                    for entry in core_mem:
-                        if entry.get("content"):
-                            core_mem_list.append(
-                                f"- memory_id:{entry.get('memory_id')}, "
-                                f"{entry.get('content')}, "
-                                f"subject_id: {entry.get('subject_id')}"
-                            )
-            else:
-                for entry in core_mem:
-                    if entry.get("content"):
-                        core_mem_list.append(
-                            f"- memory_id:{entry.get('memory_id')}, "
-                            f"{entry.get('content')}, "
-                            f"subject_id: {entry.get('subject_id')}"
-                        )
-        else:
-            for entry in core_mem:
-                if entry.get("content"):
-                    core_mem_list.append(
-                        f"- memory_id:{entry.get('memory_id')}, "
-                        f"{entry.get('content')}, "
-                        f"subject_id: {entry.get('subject_id')}"
-                    )
-
+        for entry in core_mem:
+            if entry.get("content"):
+                core_mem_list.append(
+                    f"- memory_id:{entry.get('memory_id')}, "
+                    f"{entry.get('content')}, "
+                    f"subject_id: {entry.get('subject_id')}"
+                )
         core_mem_info = "\n".join(core_mem_list)
         state.pop("core_memory", None)
 
@@ -401,7 +357,6 @@ class SimpleMemoryPlugin(Star):
             if query_text:
                 query_emb = await self.embedding_service.get_embedding(query_text)
                 if query_emb:
-                    # 输出查询向量的前5个值，方便确认向量确实生成了
                     preview = ", ".join(f"{v:.4f}" for v in query_emb[:5])
                     logger.info(
                         f"[VectorMemories] 查询向量已生成 | "

@@ -7,15 +7,9 @@
   },
   "retrieval_top_k": {
     "type": "int",
-    "description": "每次检索返回的最相关记忆数量（每种记忆类型分别计算）",
-    "hint": "值越大，系统提示中记忆越多，但可能引入噪音。建议 3-10。",
+    "description": "每次检索返回的最相关记忆数量（long_term / medium_term 分别计算）",
+    "hint": "值越大，系统提示中记忆越多，但可能引入噪音。建议 3-10。core_memory 不受此限制，始终全量注入。",
     "default": 5
-  },
-  "include_all_core_memory": {
-    "type": "bool",
-    "description": "始终包含所有 core_memory 条目（不受 top_k 限制）",
-    "hint": "Core memory 是 AI 人格设定，通常数量较少。建议开启。关闭时，core_memory 也会按相似度排序只取 top_k 条。",
-    "default": true
   },
   "embedding_provider_source": {
     "type": "string",
