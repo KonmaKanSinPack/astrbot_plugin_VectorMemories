@@ -153,18 +153,9 @@ class SimpleMemoryPlugin(Star):
 
         provider_source = self.config.get("embedding_provider_source", "astrbot")
 
-        astrbot_provider = None
-        if provider_source == "astrbot":
-            astrbot_provider = self._find_embedding_provider()
-            if astrbot_provider is None:
-                logger.warning(
-                    "未找到 AstrBot 内置 Embedding 服务商，"
-                    "请在管理面板中配置或将向量来源切换为「手动配置 API」。"
-                )
-
         self.embedding_service = EmbeddingService(
             provider_source=provider_source,
-            astrbot_provider=astrbot_provider,
+            context=self.context if provider_source == "astrbot" else None,
             api_base_url=self.config.get(
                 "embedding_api_base_url", "https://api.openai.com/v1"
             ),
@@ -193,22 +184,6 @@ class SimpleMemoryPlugin(Star):
             f"top_k={self.retrieval_top_k} | "
             f"core_memory=始终全量注入"
         )
-
-    def _find_embedding_provider(self) -> Any:
-        """从 AstrBot Context 获取已配置的 Embedding 服务商。"""
-        get_all = getattr(self.context, "get_all_embedding_providers", None)
-        logger.info(f"查看全部embed：{get_all}")
-        if get_all:
-            try:
-                providers = get_all()
-                if providers:
-                    p = providers[0]
-                    p_attrs = [a for a in dir(p) if not a.startswith("_")]
-                    logger.info(f"[VectorMemories] embedding provider 属性: {p_attrs}")
-                    return p
-            except Exception as e:
-                logger.warning(f"[VectorMemories] get_all_embedding_providers 失败: {e}")
-        return None
 
     def process_mem_info(
         self,

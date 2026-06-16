@@ -12,17 +12,17 @@ from openai import AsyncOpenAI
 
 
 class EmbeddingService:
-    """封装 embedding 后端，提供统一的单条/批量向量化与相似度排序接口。
+    """封装 embedding 后端，提供统一的向量化与相似度排序接口。
 
-    初始化时根据 *provider_source* 选择后端：
-    - ``"astrbot"``：使用 AstrBot 管理面板中已配置的 Embedding 服务商。
-    - ``"manual"``：使用手动填写的 OpenAI 兼容 API。
+    astrbot 模式每次调用时重新从 context 取 provider，避免缓存
+    因 /reload-plugins 或连接池回收而失效的实例。
+    manual 模式直接创建 AsyncOpenAI 客户端。
     """
 
     def __init__(
         self,
         provider_source: str = "manual",
-        astrbot_provider: Any = None,
+        context: Any = None,
         api_base_url: str = "https://api.openai.com/v1",
         api_key: str = "",
         model_name: str = "text-embedding-ada-002",
@@ -31,14 +31,11 @@ class EmbeddingService:
         self.provider_source = provider_source
         self.model_name = model_name
         self.dimensions = dimensions
-        self._astrbot_provider = astrbot_provider
+        self._context = context
         self._client: Optional[AsyncOpenAI] = None
 
-        if provider_source == "astrbot" and astrbot_provider is not None:
+        if provider_source == "astrbot" and context is not None:
             self._ready = True
-            # 尝试从 AstrBot provider 实例上读取模型名和维度
-            self.model_name = getattr(astrbot_provider, "model_name", model_name)
-            self.dimensions = getattr(astrbot_provider, "dimensions", dimensions)
         elif provider_source == "manual" and api_key:
             self._client = AsyncOpenAI(api_key=api_key, base_url=api_base_url)
             self._ready = True
@@ -51,21 +48,25 @@ class EmbeddingService:
         return self._ready
 
     # ------------------------------------------------------------------
+    # 惰性获取 AstrBot provider（每次调用实时取，避免缓存过期实例）
+    # ------------------------------------------------------------------
+
+    def _get_astrbot_provider(self) -> Any:
+        """每次调用时重新从 context 获取 provider。"""
+        get_all = getattr(self._context, "get_all_embedding_providers", None)
+        if get_all is None:
+            return None
+        providers = get_all()
+        return providers[0] if providers else None
+
+    # ------------------------------------------------------------------
     # Embedding helpers
     # ------------------------------------------------------------------
 
     async def get_embedding(self, text: str) -> Optional[List[float]]:
-        """返回单条文本的 embedding 向量，失败返回 None（调用方可降级）。
-
-        Args:
-            text: 待向量化的文本。
-
-        Returns:
-            embedding 浮点数列表，或 None。
-        """
+        """返回单条文本的 embedding 向量，失败返回 None。"""
         if not self._ready or not text or not text.strip():
             return None
-
         if self.provider_source == "astrbot":
             return await self._embed_via_astrbot(text.strip())
         return await self._embed_via_openai(text.strip())
@@ -73,17 +74,9 @@ class EmbeddingService:
     async def get_embeddings(
         self, texts: List[str]
     ) -> List[Optional[List[float]]]:
-        """批量文本向量化，返回与 texts 等长的列表，失败槽位为 None。
-
-        Args:
-            texts: 待向量化的文本列表。
-
-        Returns:
-            与 texts 平行的 embedding 列表。
-        """
+        """批量文本向量化，返回与 texts 等长的列表。"""
         if not self._ready or not texts:
             return [None] * len(texts)
-
         if self.provider_source == "astrbot":
             return await self._embeddings_via_astrbot(texts)
         return await self._embeddings_via_openai(texts)
@@ -93,8 +86,12 @@ class EmbeddingService:
     # ------------------------------------------------------------------
 
     async def _embed_via_astrbot(self, text: str) -> Optional[List[float]]:
+        provider = self._get_astrbot_provider()
+        if provider is None:
+            logger.warning("[VectorMemories] 惰性获取 embedding provider 为空")
+            return None
         try:
-            result = await self._astrbot_provider.get_embedding(text)
+            result = await provider.get_embedding(text)
             return list(result) if result is not None else None
         except Exception:
             logger.warning("AstrBot embedding provider failed", exc_info=True)
@@ -103,13 +100,18 @@ class EmbeddingService:
     async def _embeddings_via_astrbot(
         self, texts: List[str]
     ) -> List[Optional[List[float]]]:
+        provider = self._get_astrbot_provider()
+        if provider is None:
+            logger.warning("[VectorMemories] 惰性获取 embedding provider 为空")
+            return [None] * len(texts)
+
         indexed = [(i, t) for i, t in enumerate(texts) if t and t.strip()]
         if not indexed:
             return [None] * len(texts)
         indices, clean_texts = zip(*indexed)
 
         try:
-            raw = await self._astrbot_provider.get_embeddings(list(clean_texts))
+            raw = await provider.get_embeddings(list(clean_texts))
         except Exception:
             logger.warning("AstrBot batch embedding failed", exc_info=True)
             return [None] * len(texts)
@@ -141,9 +143,7 @@ class EmbeddingService:
     async def _embeddings_via_openai(
         self, texts: List[str]
     ) -> List[Optional[List[float]]]:
-        indexed = [
-            (i, t) for i, t in enumerate(texts) if t and t.strip()
-        ]
+        indexed = [(i, t) for i, t in enumerate(texts) if t and t.strip()]
         if not indexed:
             return [None] * len(texts)
         indices, clean_texts = zip(*indexed)
@@ -175,15 +175,10 @@ class EmbeddingService:
 
         zip 以较短者为准 → 维度不匹配时不会崩溃。
         空向量或零范数返回 0.0。
-
-        Returns:
-            [-1, 1] 之间的相似度值。
         """
         if not a or not b:
             return 0.0
-        dot = 0.0
-        norm_a = 0.0
-        norm_b = 0.0
+        dot = norm_a = norm_b = 0.0
         for x, y in zip(a, b):
             dot += x * y
             norm_a += x * x
@@ -202,15 +197,7 @@ class EmbeddingService:
         """按与 query_embedding 的余弦相似度对 memories 排序。
 
         无 embedding 的记忆记 0.0 分排在末尾。
-
-        Args:
-            query_embedding: 查询向量。
-            memories: 记忆条目列表。
-            top_k: 返回的最大条目数。
-            embedding_key: 记忆中向量的字段名。
-
-        Returns:
-            最多 top_k 个 (记忆字典, 相似度) 元组，降序排列。
+        返回最多 top_k 个 (记忆字典, 相似度) 元组，降序排列。
         """
         if not memories:
             return []
