@@ -628,6 +628,36 @@ class SimpleMemoryPlugin(Star):
         """检查当前的 user_name → subject_id 映射关系。"""
         return self.user_roster.id_dict
 
+    @filter.llm_tool(name="list_all_memories")
+    async def list_all_memories(
+        self, event: AstrMessageEvent
+    ) -> MessageEventResult:
+        """列出当前对话上下文中所有的记忆（core / long / medium）。
+
+        用于 LLM 查看已有记忆全貌，确认哪些需要修改或删除。
+        返回去掉了 embedding 的简洁列表。
+        """
+        uid = event.unified_msg_origin
+        mem_file_path = (
+            os.path.join(get_astrbot_data_path(), f"memory_store_{uid}.json")
+            if not self.use_global
+            else os.path.join(get_astrbot_data_path(), "memory_store_global.json")
+        )
+        state = MemoryStore(mem_file_path).load()
+
+        lines = []
+        for mem_type in ["core_memory", "long_term", "medium_term"]:
+            entries = state.get(mem_type, [])
+            if not entries:
+                continue
+            lines.append(f"\n[{mem_type}] ({len(entries)} 条):")
+            for e in entries:
+                content = e.get("content", "")[:120]  # 截断过长内容
+                lines.append(
+                    f"  - [{e.get('memory_id')}] {content}"
+                )
+        return "\n".join(lines) if lines else "暂无已存储的记忆。"
+
     @filter.llm_tool(name="update_one_memory")
     async def update_one_memory(
         self,
