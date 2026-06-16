@@ -185,6 +185,17 @@ class SimpleMemoryPlugin(Star):
             )
             self.enable_vector = False
 
+        logger.info(
+            "[VectorMemories] 初始化完成 | "
+            f"向量模式={'开启' if self.enable_vector else '关闭'} | "
+            f"后端={provider_source} | "
+            f"模型={self.embedding_service.model_name} | "
+            f"维度={self.embedding_service.dimensions} | "
+            f"就绪={'是' if self.embedding_service.is_ready else '否'} | "
+            f"top_k={self.retrieval_top_k} | "
+            f"core全含={self.include_all_core}"
+        )
+
     def _find_embedding_provider(self) -> Any:
         """从 AstrBot 的 provider_manager 中查找已启用的 Embedding 服务商。
 
