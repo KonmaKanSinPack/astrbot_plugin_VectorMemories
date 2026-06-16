@@ -400,6 +400,17 @@ class SimpleMemoryPlugin(Star):
             query_emb = None
             if query_text:
                 query_emb = await self.embedding_service.get_embedding(query_text)
+                if query_emb:
+                    # 输出查询向量的前5个值，方便确认向量确实生成了
+                    preview = ", ".join(f"{v:.4f}" for v in query_emb[:5])
+                    logger.info(
+                        f"[VectorMemories] 查询向量已生成 | "
+                        f"维度={len(query_emb)} | "
+                        f"前5值=[{preview}...] | "
+                        f"查询文本={query_text[:50]}..."
+                    )
+                else:
+                    logger.warning("[VectorMemories] 查询向量生成失败，降级为精确匹配")
 
             if query_emb is not None:
                 # 向量路径：先 subject_id 预过滤（隐私边界），再余弦相似度排序
