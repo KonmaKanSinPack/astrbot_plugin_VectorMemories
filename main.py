@@ -1132,7 +1132,7 @@ class SimpleMemoryPlugin(Star):
                 )
                 # 内容变更时清除旧 embedding，后续由 _handle_apply 重新生成
                 if old_entry.get("content") != entry["content"]:
-                    entry.pop("embedding", None)
+                    index[entry_id].pop("embedding", None)
                 index[entry_id].update(entry)
                 result.updated += 1
             else:
