@@ -125,7 +125,7 @@ embedding API 调用失败 / 密钥未配置 / 网络超时 / AstrBot 内置 pro
 | `/mem gen <额外指令>` | 在提示词末尾追加额外指令，如 `/mem gen 删除所有关于天气的记忆` |
 | `/mem check` | 查看上次 `/mem gen` 返回的原始 JSON 内容 |
 | `/mem rebuild` | 备份当前记忆文件 → 清空 → LLM 基于旧记忆从零重构 |
-| `/mem apply <JSON>` | 手动粘贴 LLM 返回的 JSON 应用（通常不需要，gen 已自动应用） |
+| `/mem test` | 验证 embedding provider 是否正常（获取 provider + 测试调用 get_embedding） |
 | `/mem help` | 显示使用说明 |
 
 **建议流程**：聊几轮 → `/mem gen`（LLM 自动总结 + 写入 + 生成向量）→ `/mem check` 确认

@@ -485,6 +485,14 @@ class SimpleMemoryPlugin(Star):
         else:
             state_pre = MemoryStore(mem_path).load()
 
+        # 去掉 embedding 向量再传给 LLM，否则请求体膨胀到几 MB
+        clean_state = {}
+        for mem_type in ["core_memory", "long_term", "medium_term"]:
+            clean_state[mem_type] = []
+            for entry in state_pre.get(mem_type, []):
+                entry_clean = {k: v for k, v in entry.items() if k != "embedding"}
+                clean_state[mem_type].append(entry_clean)
+
         # 将当前文件重命名为备份 → 删除原文件，gen 会创建新的记忆文件
         try:
             os.rename(mem_path, pre_mem_path)
@@ -494,7 +502,8 @@ class SimpleMemoryPlugin(Star):
 
         await self.gen(
             event,
-            extra_prompt=f"这是你之前的记忆，根据这些记忆重构现在的记忆:{state_pre}",
+            extra_prompt="这是你之前的记忆，根据这些记忆重构现在的记忆:\n"
+            + json.dumps(clean_state, ensure_ascii=False, indent=2),
         )
         event.stop_event()
 
