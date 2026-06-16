@@ -156,6 +156,7 @@ class SimpleMemoryPlugin(Star):
         self.embedding_service = EmbeddingService(
             provider_source=provider_source,
             context=self.context if provider_source == "astrbot" else None,
+            provider_id=self.config.get("embedding_provider_id", ""),
             api_base_url=self.config.get(
                 "embedding_api_base_url", "https://api.openai.com/v1"
             ),
@@ -393,7 +394,32 @@ class SimpleMemoryPlugin(Star):
             )
         event.stop_event()
     
+    
+    @mem.command("gen")
+    async def gen(
+        self, event: AstrMessageEvent, extra_prompt: str = "", use_full: str = ""
+    ):
+        """将对话历史和记忆快照发给 LLM，生成更新 JSON 并自动应用。
+
+        Args:
+            extra_prompt: 追加到提示词末尾的额外指令。
+            use_full: "--full" 时使用全部对话历史。
+        """
+        mem_result = await self.send_prompt(
+            event,
+            extra_prompt=extra_prompt,
+            full=(str(use_full).strip() == "--full"),
+        )
+        self.last_update[event.unified_msg_origin] = mem_result
+
+        handle_result = await self._handle_apply(event, mem_result)
+        logger.info(f"应用记忆结果:{handle_result}")
+        message_chain = MessageChain().message(handle_result)
+        await self.context.send_message(event.unified_msg_origin, message_chain)
+        event.stop_event()
+
     @mem.command("test")
+
     async def test_embedding(self, event: AstrMessageEvent):
         """验证 embedding provider 是否可用。
 
@@ -515,6 +541,7 @@ class SimpleMemoryPlugin(Star):
 
         向量模式启用且提供 query 时，按语义相似度返回 top-k；
         否则返回该 subject_id 下的全部记忆。
+        
 
         Args:
             user_name (str): 用户名字。

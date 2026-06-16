@@ -23,6 +23,7 @@ class EmbeddingService:
         self,
         provider_source: str = "manual",
         context: Any = None,
+        provider_id: str = "",
         api_base_url: str = "https://api.openai.com/v1",
         api_key: str = "",
         model_name: str = "text-embedding-ada-002",
@@ -32,6 +33,7 @@ class EmbeddingService:
         self.model_name = model_name
         self.dimensions = dimensions
         self._context = context
+        self._provider_id = provider_id
         self._client: Optional[AsyncOpenAI] = None
 
         if provider_source == "astrbot" and context is not None:
@@ -52,7 +54,19 @@ class EmbeddingService:
     # ------------------------------------------------------------------
 
     def _get_astrbot_provider(self) -> Any:
-        """每次调用时重新从 context 获取 provider。"""
+        """每次调用时重新从 context 获取 provider。
+
+        有指定 ID 时走 get_provider_by_id；否则取第一个 embedding provider。
+        """
+        # 有指定 ID → 精确查找
+        if self._provider_id:
+            get_by_id = getattr(self._context, "get_provider_by_id", None)
+            if get_by_id:
+                p = get_by_id(self._provider_id)
+                if p is not None and hasattr(p, "get_embedding"):
+                    return p
+
+        # 无 ID 或精确查找失败 → 取第一个 embedding provider
         get_all = getattr(self._context, "get_all_embedding_providers", None)
         if get_all is None:
             return None
