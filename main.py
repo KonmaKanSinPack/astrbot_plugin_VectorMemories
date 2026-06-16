@@ -485,9 +485,9 @@ class SimpleMemoryPlugin(Star):
         删除时传 user_name + delete=True，subject_id 可选。
 
         Args:
-            user_name: 用户名字。
-            subject_id: 该用户关联的 subject_id。
-            delete: True 时删除该映射，默认 False（添加/更新）。
+            user_name (str): 用户名字。
+            subject_id (str): 该用户关联的 subject_id。
+            delete (bool): True 时删除该映射，默认 False（添加/更新）。
         """
         if user_name is None:
             return "必须提供 user_name 参数。"
@@ -510,8 +510,8 @@ class SimpleMemoryPlugin(Star):
         否则返回该 subject_id 下的全部记忆。
 
         Args:
-            user_name: 用户名字。
-            query: 可选搜索文本，用于语义相似度匹配。
+            user_name (str): 用户名字。
+            query (str): 可选搜索文本，用于语义相似度匹配。
         """
         if user_name is None:
             return "必须提供 user_name 参数。"
@@ -599,14 +599,14 @@ class SimpleMemoryPlugin(Star):
         - 修改/删除前必须先用 search_memory_by_user_name 确认 memory_id。
 
         Args:
-            memory_type: core_memory | long_term | medium_term。
-            action_type: upsert | delete。
-            memory_id: 唯一标识，新增时自生成，更新/删除时必填。
-            content: 记忆文本，upsert 时必填。
-            category: profile | preference | task | fact，默认 fact。
-            importance: 1-5，默认 3。
-            expires_at: YYYY-MM-DD，留空永久。
-            subject_id: 归属者 ID，仅客观真理可用 "global"。
+            memory_type (str): core_memory | long_term | medium_term。
+            action_type (str): upsert | delete。
+            memory_id (str): 唯一标识，新增时自生成，更新/删除时必填。
+            content (str): 记忆文本，upsert 时必填。
+            category (str): profile | preference | task | fact，默认 fact。
+            importance (int): 1-5，默认 3。
+            expires_at (str): YYYY-MM-DD，留空永久。
+            subject_id (str): 归属者 ID，仅客观真理可用 "global"。
         """
         cur_state = {
             "memory_type": memory_type,
@@ -674,8 +674,8 @@ class SimpleMemoryPlugin(Star):
         删除前必须先调用 search_memory_by_user_name 确认 memory_id。
 
         Args:
-            memory_type: core_memory | long_term | medium_term。
-            memory_ids_to_delete_list: 待删除的 memory_id 列表。
+            memory_type (str): core_memory | long_term | medium_term。
+            memory_ids_to_delete_list (list): 待删除的 memory_id 列表。
         """
         if memory_type not in {"core_memory", "long_term", "medium_term"}:
             return (
