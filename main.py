@@ -442,6 +442,7 @@ class SimpleMemoryPlugin(Star):
         provider = providers[0]
         provider_type = type(provider).__name__
         yield event.plain_result(f"[step 1] 获取到 provider: {provider_type}")
+        yield event.plain_result(f"查看config:{provider.provider_config}")
 
         # Step 2: 测试 get_embedding
         try:
