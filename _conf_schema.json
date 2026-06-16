@@ -19,6 +19,13 @@
     "options": ["astrbot", "manual"],
     "labels": ["AstrBot 内置服务商", "手动配置 API"]
   },
+  "model_choice_provider_id": {
+                "description": "模型判定提供商 ID",
+                "hint": "当 modeastrbot 时生效。用于选择embedder模型，留空使用当前会话默认提供商。",
+                "type": "string",
+                "_special": "select_provider",
+                "default": ""
+            },
   "embedding_api_base_url": {
     "type": "string",
     "description": "[manual 模式] Embedding API 的基础地址",
