@@ -197,12 +197,14 @@ class SimpleMemoryPlugin(Star):
     def _find_embedding_provider(self) -> Any:
         """从 AstrBot Context 获取已配置的 Embedding 服务商。"""
         get_all = getattr(self.context, "get_all_embedding_providers", None)
+        logger.info(f"查看全部embed：{get_all}")
         if get_all:
             try:
                 providers = get_all()
                 if providers:
                     p = providers[0]
-                    logger.info(f"[VectorMemories] 使用 embedding provider: {getattr(p, 'model_name', '?')}")
+                    p_attrs = [a for a in dir(p) if not a.startswith("_")]
+                    logger.info(f"[VectorMemories] embedding provider 属性: {p_attrs}")
                     return p
             except Exception as e:
                 logger.warning(f"[VectorMemories] get_all_embedding_providers 失败: {e}")
@@ -824,7 +826,7 @@ class SimpleMemoryPlugin(Star):
             "}\n\n"
             "If no changes are needed, return empty upsert/delete and explain why in the summary."
         )
-        logger.info(f"记忆提示词内容:{template}")
+        # logger.info(f"记忆提示词内容:{template}")
         return template
 
     async def _handle_apply(self, event, payload_text: str) -> str:
